@@ -1,0 +1,19 @@
+{
+  "name": "safemarket-optimiseur",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SafeMarket Optimiseur — Optimiseur de PC Windows moderne (Electron + React + Node).",
+  "author": "SafeMarket",
+  "scripts": {
+    "postinstall": "npm --prefix server install && npm --prefix desktop install",
+    "dev": "concurrently -n server,desktop -c green,cyan \"npm:dev:server\" \"npm:dev:desktop\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:desktop": "npm --prefix desktop run dev",
+    "build": "npm --prefix server run build && npm --prefix desktop run build",
+    "dist": "npm --prefix desktop run dist",
+    "start:server": "npm --prefix server start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

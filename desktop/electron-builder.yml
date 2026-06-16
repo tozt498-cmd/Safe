@@ -1,0 +1,36 @@
+appId: com.safemarket.optimiseur
+productName: SafeMarket Optimiseur
+copyright: Copyright © 2026 SafeMarket
+
+directories:
+  buildResources: build
+  output: release
+
+files:
+  - out/**
+  - '!**/*.map'
+
+asarUnpack:
+  - '**/node_modules/systeminformation/**'
+
+extraResources:
+  - from: build/icon.png
+    to: icon.png
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: SafeMarket Optimiseur
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico

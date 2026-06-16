@@ -1,0 +1,19 @@
+node_modules/
+*.log
+.env
+.DS_Store
+*.sqlite
+*.sqlite-journal
+
+# Sorties de compilation (régénérées)
+dist/
+out/
+release/
+desktop/out/
+desktop/release/
+server/dist/
+server/data/
+data/
+
+# On garde desktop/build/ (icônes nécessaires à l'empaquetage),
+# mais on ignore d'éventuelles ressources volumineuses générées ailleurs.
