@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { db } from '../db/index.js';
+import { one, run, tx } from '../db/index.js';
 import { isValidKeyFormat } from '../utils/keys.js';
 import { requireAuth, signToken } from '../middleware/auth.js';
 
@@ -33,13 +33,7 @@ const loginSchema = z.object({
   hwidLabel: z.string().max(120).optional(),
 });
 
-type KeyRow = {
-  id: string;
-  key: string;
-  type: 'user' | 'admin';
-  status: 'unused' | 'used' | 'revoked';
-};
-
+type KeyRow = { id: string; key: string; type: 'user' | 'admin'; status: 'unused' | 'used' | 'revoked' };
 type UserRow = {
   id: string;
   email: string;
@@ -49,32 +43,32 @@ type UserRow = {
   hwid: string | null;
 };
 
-function publicUser(u: { id: string; email: string; role: string }) {
-  const key = db
-    .prepare(`SELECT key, type FROM activation_keys WHERE used_by = ?`)
-    .get(u.id) as { key: string; type: string } | undefined;
-  const full = db
-    .prepare(
-      `SELECT id, email, role, status, hwid, hwid_label, hwid_registered_at, created_at
-       FROM users WHERE id = ?`,
-    )
-    .get(u.id) as Record<string, unknown>;
+async function publicUser(userId: string) {
+  const full = await one<Record<string, unknown>>(
+    `SELECT id, email, role, status, hwid, hwid_label, hwid_registered_at, created_at
+     FROM users WHERE id = $1`,
+    [userId],
+  );
+  const key = await one<{ key: string; type: string }>(
+    `SELECT key, type FROM activation_keys WHERE used_by = $1`,
+    [userId],
+  );
   return {
-    id: full.id,
-    email: full.email,
-    role: full.role,
-    status: full.status,
-    hwid: full.hwid,
-    hwidLabel: full.hwid_label,
-    hwidRegisteredAt: full.hwid_registered_at,
-    createdAt: full.created_at,
+    id: full?.id,
+    email: full?.email,
+    role: full?.role,
+    status: full?.status,
+    hwid: full?.hwid,
+    hwidLabel: full?.hwid_label,
+    hwidRegisteredAt: full?.hwid_registered_at,
+    createdAt: full?.created_at,
     key: key?.key ?? null,
     keyType: key?.type ?? null,
   };
 }
 
 // POST /api/auth/signup — crée un compte lié à une clé d'activation valide.
-authRouter.post('/signup', (req, res) => {
+authRouter.post('/signup', async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Données invalides.' });
@@ -86,55 +80,55 @@ authRouter.post('/signup', (req, res) => {
     return res.status(400).json({ error: 'Format de clé invalide (XXXX-XXXX-XXXX-XXXX).' });
   }
 
-  const keyRow = db
-    .prepare(`SELECT id, key, type, status FROM activation_keys WHERE key = ? COLLATE NOCASE`)
-    .get(normKey) as KeyRow | undefined;
+  const keyRow = await one<KeyRow>(`SELECT id, key, type, status FROM activation_keys WHERE key = $1`, [
+    normKey,
+  ]);
 
   if (!keyRow) return res.status(400).json({ error: 'Clé d\'activation introuvable.' });
-  if (keyRow.status === 'revoked')
-    return res.status(400).json({ error: 'Cette clé a été révoquée.' });
+  if (keyRow.status === 'revoked') return res.status(400).json({ error: 'Cette clé a été révoquée.' });
   if (keyRow.status === 'used')
     return res.status(409).json({ error: 'Cette clé est déjà utilisée par un autre compte.' });
 
-  const existing = db
-    .prepare(`SELECT id FROM users WHERE email = ? COLLATE NOCASE`)
-    .get(email);
+  const existing = await one(`SELECT id FROM users WHERE email = $1`, [email]);
   if (existing) return res.status(409).json({ error: 'Un compte existe déjà avec cet e-mail.' });
 
   const userId = crypto.randomUUID();
   const hash = bcrypt.hashSync(password, 12);
 
-  const tx = db.transaction(() => {
-    db.prepare(
-      `INSERT INTO users (id, email, password_hash, role, status) VALUES (?, ?, ?, ?, 'active')`,
-    ).run(userId, email, hash, keyRow.type);
-    db.prepare(
-      `UPDATE activation_keys SET status = 'used', used_by = ?, used_at = datetime('now') WHERE id = ?`,
-    ).run(userId, keyRow.id);
-  });
-  tx();
+  try {
+    await tx(async (c) => {
+      await c.query(
+        `INSERT INTO users (id, email, password_hash, role, status) VALUES ($1, $2, $3, $4, 'active')`,
+        [userId, email, hash, keyRow.type],
+      );
+      await c.query(
+        `UPDATE activation_keys SET status = 'used', used_by = $1, used_at = now() WHERE id = $2`,
+        [userId, keyRow.id],
+      );
+    });
+  } catch {
+    return res.status(409).json({ error: 'Un compte existe déjà avec cet e-mail.' });
+  }
 
   return res.status(201).json({
     message: 'Compte créé. Connectez-vous pour lier cet appareil.',
-    user: publicUser({ id: userId, email, role: keyRow.type }),
+    user: await publicUser(userId),
   });
 });
 
 // POST /api/auth/login — connexion + verrou matériel à 1 appareil.
-authRouter.post('/login', (req, res) => {
+authRouter.post('/login', async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Données invalides.' });
   }
   const { email, password, hwid, hwidLabel } = parsed.data;
 
-  const user = db
-    .prepare(
-      `SELECT id, email, password_hash, role, status, hwid FROM users WHERE email = ? COLLATE NOCASE`,
-    )
-    .get(email) as UserRow | undefined;
+  const user = await one<UserRow>(
+    `SELECT id, email, password_hash, role, status, hwid FROM users WHERE email = $1`,
+    [email],
+  );
 
-  // Réponse générique pour ne pas révéler l'existence d'un compte.
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });
   }
@@ -143,10 +137,10 @@ authRouter.post('/login', (req, res) => {
   }
 
   if (!user.hwid) {
-    // Première connexion : on lie l'appareil de façon permanente.
-    db.prepare(
-      `UPDATE users SET hwid = ?, hwid_label = ?, hwid_registered_at = datetime('now') WHERE id = ?`,
-    ).run(hwid, hwidLabel ?? null, user.id);
+    await run(
+      `UPDATE users SET hwid = $1, hwid_label = $2, hwid_registered_at = now() WHERE id = $3`,
+      [hwid, hwidLabel ?? null, user.id],
+    );
     user.hwid = hwid;
   } else if (user.hwid !== hwid) {
     return res.status(403).json({
@@ -156,18 +150,15 @@ authRouter.post('/login', (req, res) => {
   }
 
   const token = signToken(user.id, hwid);
-  return res.json({
-    token,
-    user: publicUser({ id: user.id, email: user.email, role: user.role }),
-  });
+  return res.json({ token, user: await publicUser(user.id) });
 });
 
 // GET /api/auth/me — profil de l'utilisateur connecté.
-authRouter.get('/me', requireAuth, (req, res) => {
-  return res.json({ user: publicUser(req.user!) });
+authRouter.get('/me', requireAuth, async (req, res) => {
+  return res.json({ user: await publicUser(req.user!.id) });
 });
 
-// POST /api/auth/logout — côté client on jette le token ; endpoint fourni pour cohérence.
+// POST /api/auth/logout
 authRouter.post('/logout', requireAuth, (_req, res) => {
   return res.json({ ok: true });
 });

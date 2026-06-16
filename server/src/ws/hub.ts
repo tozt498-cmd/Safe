@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'node:http';
 import { verifyToken } from '../middleware/auth.js';
-import { db } from '../db/index.js';
+import { one } from '../db/index.js';
 
 interface Client {
   socket: WebSocket;
@@ -54,7 +54,7 @@ export function onlineCount(): number {
 export function attachWebSocket(server: Server) {
   wss = new WebSocketServer({ server, path: '/ws' });
 
-  wss.on('connection', (socket, req) => {
+  wss.on('connection', async (socket, req) => {
     const url = new URL(req.url ?? '', 'http://localhost');
     const token = url.searchParams.get('token') ?? '';
 
@@ -69,11 +69,10 @@ export function attachWebSocket(server: Server) {
       return;
     }
 
-    const user = db
-      .prepare(`SELECT id, email, role, status, hwid FROM users WHERE id = ?`)
-      .get(userId) as
-      | { id: string; email: string; role: string; status: string; hwid: string | null }
-      | undefined;
+    const user = await one<{ id: string; email: string; role: string; status: string; hwid: string | null }>(
+      `SELECT id, email, role, status, hwid FROM users WHERE id = $1`,
+      [userId],
+    ).catch(() => undefined);
 
     if (!user || user.status !== 'active' || user.hwid !== hwid) {
       socket.close(4003, 'Forbidden');

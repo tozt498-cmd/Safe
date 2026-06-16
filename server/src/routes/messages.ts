@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../db/index.js';
+import { one } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
 export const messagesRouter = Router();
@@ -24,10 +24,10 @@ function toPayload(r: BroadcastRow) {
   };
 }
 
-// GET /api/messages/latest — dernier message diffusé (pour ceux qui se connectent après l'envoi).
-messagesRouter.get('/latest', requireAuth, (_req, res) => {
-  const row = db
-    .prepare(`SELECT id, title, body, type, blocking, created_at FROM broadcasts ORDER BY created_at DESC LIMIT 1`)
-    .get() as BroadcastRow | undefined;
-  return res.json({ message: row ? toPayload(row) : null });
+// GET /api/messages/latest — dernier message diffusé (rattrapage à la connexion).
+messagesRouter.get('/latest', requireAuth, async (_req, res) => {
+  const row = await one<BroadcastRow>(
+    `SELECT id, title, body, type, blocking, created_at FROM broadcasts ORDER BY created_at DESC LIMIT 1`,
+  );
+  res.json({ message: row ? toPayload(row) : null });
 });

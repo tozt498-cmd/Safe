@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
-import { db } from '../db/index.js';
+import { one } from '../db/index.js';
 
 export interface AuthUser {
   id: string;
@@ -47,7 +47,7 @@ function readToken(req: Request): string | null {
  *  - que le compte existe et est actif
  *  - que le HWID du token correspond au HWID enregistré sur le compte (verrou 1 appareil)
  */
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = readToken(req);
   if (!token) return res.status(401).json({ error: 'Authentification requise.' });
 
@@ -58,9 +58,15 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ error: 'Session invalide ou expirée.' });
   }
 
-  const user = db
-    .prepare(`SELECT id, email, role, status, hwid FROM users WHERE id = ?`)
-    .get(payload.sub) as AuthUser | undefined;
+  let user: AuthUser | undefined;
+  try {
+    user = await one<AuthUser>(
+      `SELECT id, email, role, status, hwid FROM users WHERE id = $1`,
+      [payload.sub],
+    );
+  } catch {
+    return res.status(500).json({ error: 'Erreur de base de données.' });
+  }
 
   if (!user) return res.status(401).json({ error: 'Compte introuvable.' });
   if (user.status === 'revoked')
