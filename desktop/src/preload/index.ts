@@ -21,12 +21,15 @@ import type {
   TotalReport,
 } from '../shared/types.js';
 
-const API_PORT = 4317;
+// Production -> backend hébergé (Render). Dev -> backend local.
+const PROD_API = 'https://safeoptimiseur.onrender.com';
+const DEV_API = 'http://127.0.0.1:4317';
+const API_BASE = import.meta.env.PROD ? PROD_API : DEV_API;
 
 export const api = {
   config: {
-    apiUrl: `http://127.0.0.1:${API_PORT}/api`,
-    wsUrl: `ws://127.0.0.1:${API_PORT}/ws`,
+    apiUrl: `${API_BASE}/api`,
+    wsUrl: `${API_BASE.replace(/^http/, 'ws')}/ws`,
   },
 
   // Fenêtre
