@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { createWindow, createTray, getMainWindow, setQuitting } from './window.js';
 import { registerIpc } from './ipc.js';
 import { getSettings } from './settings.js';
+import { initAutoUpdate } from './updater.js';
 
 // Instance unique : au 2e lancement, on ré-affiche la fenêtre existante.
 const gotLock = app.requestSingleInstanceLock();
@@ -21,6 +22,7 @@ if (!gotLock) {
     registerIpc();
     createWindow();
     createTray();
+    initAutoUpdate();
 
     // Applique le réglage de lancement au démarrage.
     app.setLoginItemSettings({ openAtLogin: getSettings().launchAtStartup });

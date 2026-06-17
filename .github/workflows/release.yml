@@ -25,22 +25,18 @@ jobs:
         working-directory: desktop
         run: npm install
 
-      - name: Build installer (.exe)
+      - name: Build & publish installer (.exe + latest.yml pour l'auto-update)
         working-directory: desktop
-        run: npm run dist
+        run: npm run release
         env:
           # Pas de signature de code (certificat payant non requis pour démarrer).
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          # electron-builder publie la Release GitHub (exe, blockmap, latest.yml).
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload installer artifact
+      - name: Upload installer artifact (sauvegarde)
         uses: actions/upload-artifact@v4
         with:
           name: SafeMarket-Optimiseur-Setup
           path: desktop/release/*.exe
           if-no-files-found: error
-
-      - name: Publish GitHub Release (sur tag v*)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: desktop/release/*.exe
