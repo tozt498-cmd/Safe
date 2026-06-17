@@ -31,3 +31,16 @@ messagesRouter.get('/latest', requireAuth, async (_req, res) => {
   );
   res.json({ message: row ? toPayload(row) : null });
 });
+
+// GET /api/messages/lockdown — état de blocage global (persistant, vérifié à chaque ouverture).
+messagesRouter.get('/lockdown', requireAuth, async (_req, res) => {
+  const row = await one<{ active: number; title: string; body: string; kind: string }>(
+    `SELECT active, title, body, kind FROM lockdown WHERE id='current'`,
+  );
+  res.json({
+    active: !!row?.active,
+    title: row?.title ?? null,
+    body: row?.body ?? null,
+    kind: (row?.kind as 'info' | 'update' | 'important') ?? 'important',
+  });
+});

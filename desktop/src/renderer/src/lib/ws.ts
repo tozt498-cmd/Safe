@@ -1,5 +1,3 @@
-import type { BroadcastPayload } from './types';
-
 type Handler = (data: unknown) => void;
 
 const listeners = new Map<string, Set<Handler>>();
@@ -12,7 +10,10 @@ function emit(type: string, data: unknown) {
   listeners.get(type)?.forEach((h) => h(data));
 }
 
-export function on(type: 'broadcast' | 'presence' | 'status', handler: Handler): () => void {
+export function on(
+  type: 'broadcast' | 'presence' | 'status' | 'lockdown',
+  handler: Handler,
+): () => void {
   if (!listeners.has(type)) listeners.set(type, new Set());
   listeners.get(type)!.add(handler);
   return () => listeners.get(type)?.delete(handler);
@@ -31,8 +32,13 @@ function open() {
   socket.onerror = () => socket?.close();
   socket.onmessage = (ev) => {
     try {
-      const msg = JSON.parse(ev.data) as { type: string; payload?: BroadcastPayload; count?: number };
+      const msg = JSON.parse(ev.data) as {
+        type: string;
+        payload?: unknown;
+        count?: number;
+      };
       if (msg.type === 'broadcast' && msg.payload) emit('broadcast', msg.payload);
+      else if (msg.type === 'lockdown' && msg.payload) emit('lockdown', msg.payload);
       else if (msg.type === 'presence') emit('presence', msg.count ?? 0);
       else if (msg.type === 'welcome') emit('presence', (msg as { presence?: number }).presence ?? 0);
     } catch {

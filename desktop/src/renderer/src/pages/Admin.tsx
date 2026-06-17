@@ -12,9 +12,12 @@ import {
   Send,
   RotateCcw,
   Trash2,
+  Lock,
+  ShieldOff,
 } from 'lucide-react';
 import { Card, CardHeader, Button, Badge, Input, Toggle, Skeleton, PageHeader, EmptyState, IconButton } from '../components/ui/primitives';
 import { get, post, del } from '../lib/api';
+import { on } from '../lib/ws';
 import { toast } from '../store/toast';
 import { formatDate, relativeTime } from '../lib/format';
 import { cn } from '../lib/cn';
@@ -268,9 +271,34 @@ function BroadcastTab() {
   const [blocking, setBlocking] = useState(false);
   const [sending, setSending] = useState(false);
   const [history, setHistory] = useState<AdminBroadcast[] | null>(null);
+  const [lock, setLock] = useState<{ active: boolean; title?: string | null }>({ active: false });
+  const [unlocking, setUnlocking] = useState(false);
 
   const load = () => get<{ broadcasts: AdminBroadcast[] }>('/admin/broadcasts').then((d) => setHistory(d.broadcasts)).catch(() => {});
-  useEffect(() => { load(); }, []);
+  const loadLock = () =>
+    get<{ active: boolean; title: string | null }>('/admin/lockdown').then(setLock).catch(() => {});
+  useEffect(() => {
+    load();
+    loadLock();
+    const off = on('lockdown', (d) => {
+      const p = d as { active: boolean; title?: string };
+      setLock({ active: !!p.active, title: p.title ?? null });
+    });
+    return off;
+  }, []);
+
+  const clearLock = async () => {
+    setUnlocking(true);
+    try {
+      await post('/admin/lockdown/clear');
+      setLock({ active: false });
+      toast.success('Blocage levé', 'Les utilisateurs ont retrouvé l\'accès.');
+    } catch (e) {
+      toast.error('Échec', (e as Error).message);
+    } finally {
+      setUnlocking(false);
+    }
+  };
 
   const remove = async (id: string) => {
     try {
@@ -290,11 +318,15 @@ function BroadcastTab() {
     setSending(true);
     try {
       const res = await post<{ delivered: number }>('/admin/broadcast', { title, body, kind, blocking });
-      toast.success('Message diffusé', `Envoyé à ${res.delivered} utilisateur(s) en ligne.`);
+      toast.success(
+        blocking ? 'Application bloquée' : 'Message diffusé',
+        blocking ? 'Les utilisateurs sont bloqués jusqu\'au déblocage.' : `Envoyé à ${res.delivered} utilisateur(s) en ligne.`,
+      );
       setTitle('');
       setBody('');
       setBlocking(false);
       load();
+      loadLock();
     } catch (e) {
       toast.error('Échec', (e as Error).message);
     } finally {
@@ -303,7 +335,45 @@ function BroadcastTab() {
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <div className="space-y-5">
+      {/* Statut du blocage global */}
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-4 rounded-2xl border p-4',
+          lock.active ? 'border-danger/40 bg-danger/[0.07]' : 'border-border bg-surface/50',
+        )}
+      >
+        <div
+          className={cn(
+            'flex size-11 items-center justify-center rounded-xl border',
+            lock.active ? 'border-danger/30 bg-danger/10 text-danger' : 'border-border bg-surface-2/60 text-accent',
+          )}
+        >
+          {lock.active ? <Lock className="size-5" /> : <ShieldOff className="size-5" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-content">
+              {lock.active ? 'Application BLOQUÉE' : 'Aucun blocage actif'}
+            </p>
+            <Badge tone={lock.active ? 'danger' : 'accent'} dot>
+              {lock.active ? 'Actif' : 'Inactif'}
+            </Badge>
+          </div>
+          <p className="truncate text-xs text-muted">
+            {lock.active
+              ? `Les utilisateurs voient l'overlay « ${lock.title ?? 'Mise à jour'} » et ne peuvent rien faire.`
+              : 'Les utilisateurs ont un accès normal à l\'application.'}
+          </p>
+        </div>
+        {lock.active && (
+          <Button variant="danger" icon={<ShieldOff className="size-4" />} loading={unlocking} onClick={clearLock}>
+            Lever le blocage
+          </Button>
+        )}
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
       <Card>
         <CardHeader title="Composer un message" subtitle="Diffusé en temps réel à tous les utilisateurs" icon={<Megaphone className="size-[18px]" />} />
         <div className="space-y-3">
@@ -381,6 +451,7 @@ function BroadcastTab() {
           )}
         </div>
       </Card>
+      </div>
     </div>
   );
 }

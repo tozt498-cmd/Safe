@@ -85,9 +85,23 @@ export async function initDb(): Promise<void> {
       created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
+    CREATE TABLE IF NOT EXISTS lockdown (
+      id          TEXT PRIMARY KEY,
+      active      INTEGER NOT NULL DEFAULT 0,
+      title       TEXT,
+      body        TEXT,
+      kind        TEXT,
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
     CREATE INDEX IF NOT EXISTS idx_keys_status ON activation_keys(status);
     CREATE INDEX IF NOT EXISTS idx_broadcasts_created ON broadcasts(created_at DESC);
   `);
+
+  // Ligne unique d'état de blocage global.
+  await pool.query(
+    `INSERT INTO lockdown (id, active) VALUES ('current', 0) ON CONFLICT (id) DO NOTHING`,
+  );
 
   const row = await one<{ n: string }>(
     `SELECT COUNT(*)::int AS n FROM activation_keys WHERE type = 'admin'`,

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { one, all, run } from '../db/index.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { generateKey } from '../utils/keys.js';
-import { broadcast, onlineCount, type BroadcastPayload } from '../ws/hub.js';
+import { broadcast, broadcastLockdown, onlineCount, type BroadcastPayload } from '../ws/hub.js';
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth, requireAdmin);
@@ -131,8 +131,39 @@ adminRouter.post('/broadcast', async (req, res) => {
     blocking,
     createdAt: ins?.created_at ?? new Date().toISOString(),
   };
-  broadcast(payload);
+
+  if (blocking) {
+    // Active le blocage global (persistant). L'overlay reste jusqu'au déblocage admin.
+    await run(
+      `UPDATE lockdown SET active=1, title=$1, body=$2, kind=$3, updated_at=now() WHERE id='current'`,
+      [title, body, kind],
+    );
+    broadcastLockdown({ active: true, title, body, kind });
+  } else {
+    broadcast(payload);
+  }
   res.status(201).json({ message: payload, delivered: onlineCount() });
+});
+
+// Lève le blocage global (admin uniquement).
+adminRouter.post('/lockdown/clear', async (_req, res) => {
+  await run(`UPDATE lockdown SET active=0, updated_at=now() WHERE id='current'`);
+  broadcastLockdown({ active: false });
+  res.json({ ok: true });
+});
+
+// Statut du blocage (pour le panneau admin).
+adminRouter.get('/lockdown', async (_req, res) => {
+  const row = await one<{ active: number; title: string; body: string; kind: string; updated_at: string }>(
+    `SELECT active, title, body, kind, updated_at FROM lockdown WHERE id='current'`,
+  );
+  res.json({
+    active: !!row?.active,
+    title: row?.title ?? null,
+    body: row?.body ?? null,
+    kind: row?.kind ?? null,
+    updatedAt: row?.updated_at ?? null,
+  });
 });
 
 adminRouter.delete('/broadcasts/:id', async (req, res) => {

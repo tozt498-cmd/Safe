@@ -16,7 +16,8 @@ let wss: WebSocketServer | null = null;
 type OutboundMessage =
   | { type: 'welcome'; presence: number }
   | { type: 'presence'; count: number }
-  | { type: 'broadcast'; payload: BroadcastPayload };
+  | { type: 'broadcast'; payload: BroadcastPayload }
+  | { type: 'lockdown'; payload: LockdownPayload };
 
 export interface BroadcastPayload {
   id: string;
@@ -25,6 +26,13 @@ export interface BroadcastPayload {
   kind: 'info' | 'update' | 'important';
   blocking: boolean;
   createdAt: string;
+}
+
+export interface LockdownPayload {
+  active: boolean;
+  title?: string;
+  body?: string;
+  kind?: 'info' | 'update' | 'important';
 }
 
 function send(client: Client, msg: OutboundMessage) {
@@ -44,6 +52,11 @@ function broadcastPresence() {
 /** Diffuse un message à tous les clients connectés (temps réel). */
 export function broadcast(payload: BroadcastPayload) {
   for (const c of clients) send(c, { type: 'broadcast', payload });
+}
+
+/** Diffuse l'état de blocage global (activation/levée) à tous les clients. */
+export function broadcastLockdown(payload: LockdownPayload) {
+  for (const c of clients) send(c, { type: 'lockdown', payload });
 }
 
 /** Nombre d'utilisateurs actuellement connectés en temps réel. */

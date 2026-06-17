@@ -191,6 +191,32 @@ const STEPS: StepDef[] = [
     },
   },
   {
+    id: 'background-apps',
+    label: 'Applications en arrière-plan',
+    description: 'Désactive les applications Windows qui tournent en arrière-plan.',
+    sensitive: false,
+    recommended: true,
+    run: async () => {
+      const ok = await run(
+        'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications" /v GlobalUserDisabled /t REG_DWORD /d 1 /f',
+      );
+      return { detail: ok ? 'Applis en arrière-plan désactivées.' : 'Non appliqué.', items: ok ? 1 : 0 };
+    },
+  },
+  {
+    id: 'overlays',
+    label: 'Overlays & captures (Game DVR)',
+    description: 'Désactive Game Bar / Game DVR pour libérer des ressources.',
+    sensitive: false,
+    recommended: true,
+    run: async () => {
+      let ok = 0;
+      ok += (await run('reg add "HKCU\\System\\GameConfigStore" /v GameDVR_Enabled /t REG_DWORD /d 0 /f')) ? 1 : 0;
+      ok += (await run('reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR" /v AppCaptureEnabled /t REG_DWORD /d 0 /f')) ? 1 : 0;
+      return { detail: ok > 0 ? 'Game Bar & Game DVR désactivés.' : 'Non appliqué.', items: ok };
+    },
+  },
+  {
     id: 'bloatware',
     label: 'Bloatware',
     description: 'Détecte les applications préinstallées superflues.',

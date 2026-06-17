@@ -182,3 +182,25 @@ export interface TotalReport {
   steps: TotalStepResult[];
   restorePoint: boolean;
 }
+
+// ---- Jeux ------------------------------------------------------------------
+export interface GameInfo {
+  id: string;
+  name: string;
+  tagline: string;
+  accent: string; // couleur d'accent de la carte
+  running: boolean;
+}
+
+export interface GameProgress {
+  gameId: string;
+  index: number;
+  total: number;
+  overallPercent: number;
+  current: TotalStepResult;
+}
+
+export interface GameReport extends TotalReport {
+  gameId: string;
+  gameName: string;
+}

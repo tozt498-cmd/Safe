@@ -4,6 +4,7 @@ import { scanClean, runClean } from './system/clean.js';
 import { freeMemory, setGameMode } from './system/optimize.js';
 import { runBoost } from './system/boost.js';
 import { runTotal, totalCategories } from './system/total.js';
+import { listGames, runGameOptimization } from './system/games.js';
 import { listProcesses, killProcess } from './system/processes.js';
 import { listStartup, setStartupItem } from './system/startup.js';
 import { listDisks } from './system/disks.js';
@@ -73,6 +74,14 @@ export function registerIpc() {
   ipcMain.handle('total:run', (e, ids: string[]) =>
     runTotal(ids, (p) => {
       if (!e.sender.isDestroyed()) e.sender.send('total:progress', p);
+    }),
+  );
+
+  // Optimisation par jeu — progression diffusée via 'games:progress'
+  ipcMain.handle('games:list', () => listGames());
+  ipcMain.handle('games:run', (e, gameId: string) =>
+    runGameOptimization(gameId, (p) => {
+      if (!e.sender.isDestroyed()) e.sender.send('games:progress', p);
     }),
   );
 

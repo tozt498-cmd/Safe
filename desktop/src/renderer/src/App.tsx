@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './store/auth';
 import { useTheme } from './store/theme';
 import { AppShell } from './components/layout/AppShell';
+import { LockdownGate } from './components/LockdownGate';
 import { Toaster } from './components/ui/Toaster';
 import { LogoMark } from './components/Logo';
 import { Spinner } from './components/ui/primitives';
@@ -10,6 +11,7 @@ import { Spinner } from './components/ui/primitives';
 import { AuthScreen } from './pages/AuthScreen';
 import { Home } from './pages/Home';
 import { OptimisationTotale } from './pages/OptimisationTotale';
+import { Games } from './pages/Games';
 import { Dashboard } from './pages/Dashboard';
 import { Benchmark } from './pages/Benchmark';
 import { Cleaning } from './pages/Cleaning';
@@ -52,6 +54,7 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route index element={<Home />} />
             <Route path="/total" element={<OptimisationTotale />} />
+            <Route path="/games" element={<Games />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/benchmark" element={<Benchmark />} />
             <Route path="/cleaning" element={<Cleaning />} />
@@ -71,6 +74,7 @@ export default function App() {
           </Route>
         </Routes>
       )}
+      {status === 'authed' && <LockdownGate />}
       <Toaster />
     </>
   );

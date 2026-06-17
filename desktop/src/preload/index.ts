@@ -19,6 +19,9 @@ import type {
   TotalCategory,
   TotalProgress,
   TotalReport,
+  GameInfo,
+  GameProgress,
+  GameReport,
 } from '../shared/types.js';
 
 // Production -> backend hébergé (Render). Dev -> backend local.
@@ -76,6 +79,15 @@ export const api = {
       const handler = (_e: IpcRendererEvent, p: TotalProgress) => cb(p);
       ipcRenderer.on('total:progress', handler);
       return () => ipcRenderer.removeListener('total:progress', handler);
+    },
+  },
+  games: {
+    list: (): Promise<GameInfo[]> => ipcRenderer.invoke('games:list'),
+    run: (gameId: string): Promise<GameReport> => ipcRenderer.invoke('games:run', gameId),
+    onProgress: (cb: (p: GameProgress) => void) => {
+      const handler = (_e: IpcRendererEvent, p: GameProgress) => cb(p);
+      ipcRenderer.on('games:progress', handler);
+      return () => ipcRenderer.removeListener('games:progress', handler);
     },
   },
 

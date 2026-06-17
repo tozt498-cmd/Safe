@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   LogOut,
   Sparkles,
+  Gamepad2,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../store/auth';
@@ -47,6 +48,10 @@ const GROUPS: Group[] = [
       { to: '/processes', label: 'Processus', icon: Activity },
       { to: '/startup', label: 'Démarrage', icon: Power },
     ],
+  },
+  {
+    title: 'Jeux',
+    items: [{ to: '/games', label: 'Optimisation jeux', icon: Gamepad2 }],
   },
   {
     title: 'Matériel & réseau',

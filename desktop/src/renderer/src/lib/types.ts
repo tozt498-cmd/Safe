@@ -23,6 +23,13 @@ export interface BroadcastPayload {
   createdAt: string;
 }
 
+export interface LockdownState {
+  active: boolean;
+  title: string | null;
+  body: string | null;
+  kind: 'info' | 'update' | 'important';
+}
+
 export interface AdminKey {
   id: string;
   key: string;
