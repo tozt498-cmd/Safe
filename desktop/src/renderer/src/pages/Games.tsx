@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Gamepad2,
   Rocket,
   Check,
   Loader2,
@@ -13,7 +12,8 @@ import {
   Thermometer,
   Wifi,
 } from 'lucide-react';
-import { Card, Button, Badge, Skeleton, PageHeader } from '../components/ui/primitives';
+import { Card, Button, Skeleton, PageHeader } from '../components/ui/primitives';
+import { GameArt } from '../components/GameArt';
 import { useAsync, useInterval } from '../lib/hooks';
 import { toast } from '../store/toast';
 import { formatBytes } from '../lib/format';
@@ -21,21 +21,6 @@ import { cn } from '../lib/cn';
 import type { GameInfo, GameProgress, GameReport, LiveStats, TotalStepStatus } from '../lib/types';
 
 type Phase = 'idle' | 'running' | 'done';
-
-function Monogram({ name, accent }: { name: string; accent: string }) {
-  return (
-    <div
-      className="relative flex h-24 items-center justify-center overflow-hidden rounded-xl"
-      style={{ backgroundImage: `linear-gradient(135deg, ${accent}33, ${accent}0d)`, border: `1px solid ${accent}40` }}
-    >
-      <div className="pointer-events-none absolute -right-6 -top-8 size-24 rounded-full blur-2xl" style={{ background: `${accent}40` }} />
-      <Gamepad2 className="size-9" style={{ color: accent }} />
-      <span className="absolute bottom-2 left-3 text-3xl font-bold tracking-tight" style={{ color: `${accent}` }}>
-        {name[0]}
-      </span>
-    </div>
-  );
-}
 
 export function Games() {
   const games = useAsync<GameInfo[]>(() => window.api.games.list());
@@ -144,12 +129,30 @@ export function Games() {
                       )}
                       style={active ? { borderColor: `${g.accent}99`, boxShadow: `0 0 0 1px ${g.accent}55, 0 0 30px -8px ${g.accent}80` } : undefined}
                     >
-                      <Monogram name={g.name} accent={g.accent} />
-                      <div className="mt-4 flex items-start justify-between">
-                        <div>
-                          <p className="text-base font-semibold text-content">{g.name}</p>
-                          <p className="text-xs text-muted">{g.tagline}</p>
+                      <div className="relative h-40 overflow-hidden rounded-xl">
+                        <GameArt id={g.id} />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+                        <div className="absolute inset-x-3 bottom-2.5 flex items-end justify-between gap-2">
+                          <div>
+                            <p
+                              className="text-xl font-bold tracking-tight text-white"
+                              style={{ textShadow: '0 2px 10px rgba(0,0,0,.55)' }}
+                            >
+                              {g.name}
+                            </p>
+                            <p className="text-2xs font-medium text-white/85">{g.tagline}</p>
+                          </div>
+                          {g.running && (
+                            <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-2xs font-semibold text-[#04130d]">
+                              En jeu
+                            </span>
+                          )}
                         </div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="text-2xs text-faint">
+                          {g.running ? 'Détecté en cours d\'exécution' : 'Non lancé'}
+                        </span>
                         <div
                           className={cn(
                             'flex size-5 items-center justify-center rounded-md border transition-colors',
@@ -159,15 +162,6 @@ export function Games() {
                         >
                           {active && <Check className="size-3.5" strokeWidth={3} />}
                         </div>
-                      </div>
-                      <div className="mt-3">
-                        {g.running ? (
-                          <Badge tone="accent" dot>
-                            En cours d'exécution
-                          </Badge>
-                        ) : (
-                          <span className="text-2xs text-faint">Non lancé</span>
-                        )}
                       </div>
                     </motion.button>
                   );
