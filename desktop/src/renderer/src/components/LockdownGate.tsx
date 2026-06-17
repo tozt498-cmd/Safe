@@ -4,6 +4,7 @@ import { Lock } from 'lucide-react';
 import { LogoMark } from './Logo';
 import { on } from '../lib/ws';
 import { get } from '../lib/api';
+import { useAuth } from '../store/auth';
 import type { LockdownState } from '../lib/types';
 
 /**
@@ -14,6 +15,7 @@ import type { LockdownState } from '../lib/types';
  */
 export function LockdownGate() {
   const [state, setState] = useState<LockdownState | null>(null);
+  const role = useAuth((s) => s.user?.role);
 
   useEffect(() => {
     get<LockdownState>('/messages/lockdown')
@@ -31,7 +33,9 @@ export function LockdownGate() {
     return off;
   }, []);
 
-  const active = !!state?.active;
+  // Les administrateurs ne sont JAMAIS bloqués : ils doivent pouvoir lever
+  // le blocage depuis le panneau admin.
+  const active = !!state?.active && role !== 'admin';
 
   return (
     <AnimatePresence>
