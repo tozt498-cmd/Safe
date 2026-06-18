@@ -67,6 +67,13 @@ adminRouter.post('/keys/:id/revoke', async (req, res) => {
   res.json({ ok: true });
 });
 
+// Suppression DÉFINITIVE d'une clé.
+adminRouter.delete('/keys/:id', async (req, res) => {
+  const changes = await run(`DELETE FROM activation_keys WHERE id = $1`, [req.params.id]);
+  if (changes === 0) return res.status(404).json({ error: 'Clé introuvable.' });
+  res.json({ ok: true });
+});
+
 // ---- Gestion des comptes --------------------------------------------------
 adminRouter.get('/accounts', async (_req, res) => {
   const accounts = await all(

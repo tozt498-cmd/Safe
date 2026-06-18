@@ -1,6 +1,6 @@
 {
   "name": "safemarket-optimiseur-desktop",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "private": true,
   "description": "SafeMarket Optimiseur — application desktop Electron + React.",
   "author": "SafeMarket",

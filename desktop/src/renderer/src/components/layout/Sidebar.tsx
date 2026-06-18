@@ -16,10 +16,14 @@ import {
   LogOut,
   Sparkles,
   Gamepad2,
+  Lock,
+  ShoppingBag,
+  MessageCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../store/auth';
 import { cn } from '../../lib/cn';
+import { isPro, openExternal, DISCORD_URL, FREE_ROUTES } from '../../lib/entitlement';
 
 interface Item {
   to: string;
@@ -64,7 +68,7 @@ const GROUPS: Group[] = [
   },
 ];
 
-function NavItem({ item }: { item: Item }) {
+function NavItem({ item, locked }: { item: Item; locked?: boolean }) {
   const Icon = item.icon;
   return (
     <NavLink
@@ -95,8 +99,9 @@ function NavItem({ item }: { item: Item }) {
               isActive ? 'opacity-100 shadow-glow-sm' : 'opacity-0',
             )}
           />
-          <Icon className={cn('relative size-[18px] transition-colors', isActive && 'text-accent')} />
-          <span className="relative">{item.label}</span>
+          <Icon className={cn('relative size-[18px] transition-colors', isActive && 'text-accent', locked && 'opacity-60')} />
+          <span className={cn('relative', locked && 'opacity-60')}>{item.label}</span>
+          {locked && <Lock className="relative ml-auto size-3.5 text-faint" />}
         </>
       )}
     </NavLink>
@@ -105,6 +110,7 @@ function NavItem({ item }: { item: Item }) {
 
 export function Sidebar() {
   const { user, logout } = useAuth();
+  const pro = isPro(user);
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-bg/30 backdrop-blur-sm">
@@ -134,9 +140,12 @@ export function Sidebar() {
               <span className="pointer-events-none absolute -inset-y-6 left-0 w-1/3 -skew-x-12 bg-white/10 opacity-0 transition-all duration-500 group-hover:left-full group-hover:opacity-100" />
               <Sparkles className="relative size-[18px]" />
               <span className="relative">Optimisation Totale</span>
+              {!pro && <Lock className="relative ml-auto size-3.5" />}
             </>
           )}
         </NavLink>
+
+        <NavItem item={{ to: '/shop', label: 'Boutique', icon: ShoppingBag }} />
 
         {GROUPS.map((g) => (
           <div key={g.title}>
@@ -145,7 +154,7 @@ export function Sidebar() {
             </p>
             <div className="space-y-0.5">
               {g.items.map((item) => (
-                <NavItem key={item.to} item={item} />
+                <NavItem key={item.to} item={item} locked={!pro && !FREE_ROUTES.includes(item.to)} />
               ))}
             </div>
           </div>
@@ -176,14 +185,21 @@ export function Sidebar() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-content">{user?.email}</p>
-            <p className="text-2xs capitalize text-faint">
-              {user?.role === 'admin' ? 'Administrateur' : 'Utilisateur'}
+            <p className={cn('text-2xs', pro ? 'text-accent' : 'text-faint')}>
+              {user?.role === 'admin' ? 'Administrateur' : pro ? 'Licence Pro' : 'Compte gratuit'}
             </p>
           </div>
         </NavLink>
         <button
+          onClick={() => openExternal(DISCORD_URL)}
+          className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted transition-colors hover:bg-[#5865F2]/15 hover:text-[#8b93f8]"
+        >
+          <MessageCircle className="size-[18px]" />
+          Rejoindre le Discord
+        </button>
+        <button
           onClick={logout}
-          className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted transition-colors hover:bg-danger/10 hover:text-danger"
         >
           <LogOut className="size-[18px]" />
           Déconnexion

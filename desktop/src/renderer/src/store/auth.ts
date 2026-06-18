@@ -11,6 +11,7 @@ interface AuthState {
   signup: (email: string, password: string, confirm: string, key: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
+  redeem: (key: string) => Promise<void>;
 }
 
 async function getHwid() {
@@ -74,5 +75,10 @@ export const useAuth = create<AuthState>((set, getState) => ({
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) getState().logout();
     }
+  },
+
+  redeem: async (key) => {
+    const res = await post<{ user: User }>('/auth/redeem', { key });
+    set({ user: res.user });
   },
 }));

@@ -12,6 +12,7 @@ export interface User {
   createdAt: string;
   key: string | null;
   keyType: 'user' | 'admin' | null;
+  plan: 'free' | 'pro';
 }
 
 export interface BroadcastPayload {

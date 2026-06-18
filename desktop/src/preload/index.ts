@@ -51,6 +51,7 @@ export const api = {
       ipcRenderer.invoke('app:getSettings'),
     setSettings: (patch: Record<string, unknown>) => ipcRenderer.invoke('app:setSettings', patch),
     notify: (title: string, body: string) => ipcRenderer.invoke('app:notify', { title, body }),
+    openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
   },
 
   // Métriques

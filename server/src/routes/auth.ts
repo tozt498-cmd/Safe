@@ -19,7 +19,7 @@ const signupSchema = z
     email: emailSchema,
     password: passwordSchema,
     confirm: z.string(),
-    key: z.string().trim(),
+    key: z.string().trim().optional().default(''),
   })
   .refine((d) => d.password === d.confirm, {
     message: 'Les mots de passe ne correspondent pas.',
@@ -64,6 +64,7 @@ async function publicUser(userId: string) {
     createdAt: full?.created_at,
     key: key?.key ?? null,
     keyType: key?.type ?? null,
+    plan: key?.type || full?.role === 'admin' ? 'pro' : 'free',
   };
 }
 
@@ -76,18 +77,20 @@ authRouter.post('/signup', async (req, res) => {
   const { email, password, key } = parsed.data;
   const normKey = key.toUpperCase();
 
-  if (!isValidKeyFormat(normKey)) {
-    return res.status(400).json({ error: 'Format de clé invalide (XXXX-XXXX-XXXX-XXXX).' });
+  // Clé optionnelle : sans clé -> compte GRATUIT (limité). Avec clé -> compte PRO.
+  let keyRow: KeyRow | undefined;
+  let role: 'user' | 'admin' = 'user';
+  if (normKey) {
+    if (!isValidKeyFormat(normKey)) {
+      return res.status(400).json({ error: 'Format de clé invalide (XXXX-XXXX-XXXX-XXXX).' });
+    }
+    keyRow = await one<KeyRow>(`SELECT id, key, type, status FROM activation_keys WHERE key = $1`, [normKey]);
+    if (!keyRow) return res.status(400).json({ error: 'Clé d\'activation introuvable.' });
+    if (keyRow.status === 'revoked') return res.status(400).json({ error: 'Cette clé a été révoquée.' });
+    if (keyRow.status === 'used')
+      return res.status(409).json({ error: 'Cette clé est déjà utilisée par un autre compte.' });
+    role = keyRow.type;
   }
-
-  const keyRow = await one<KeyRow>(`SELECT id, key, type, status FROM activation_keys WHERE key = $1`, [
-    normKey,
-  ]);
-
-  if (!keyRow) return res.status(400).json({ error: 'Clé d\'activation introuvable.' });
-  if (keyRow.status === 'revoked') return res.status(400).json({ error: 'Cette clé a été révoquée.' });
-  if (keyRow.status === 'used')
-    return res.status(409).json({ error: 'Cette clé est déjà utilisée par un autre compte.' });
 
   const existing = await one(`SELECT id FROM users WHERE email = $1`, [email]);
   if (existing) return res.status(409).json({ error: 'Un compte existe déjà avec cet e-mail.' });
@@ -99,12 +102,14 @@ authRouter.post('/signup', async (req, res) => {
     await tx(async (c) => {
       await c.query(
         `INSERT INTO users (id, email, password_hash, role, status) VALUES ($1, $2, $3, $4, 'active')`,
-        [userId, email, hash, keyRow.type],
+        [userId, email, hash, role],
       );
-      await c.query(
-        `UPDATE activation_keys SET status = 'used', used_by = $1, used_at = now() WHERE id = $2`,
-        [userId, keyRow.id],
-      );
+      if (keyRow) {
+        await c.query(
+          `UPDATE activation_keys SET status = 'used', used_by = $1, used_at = now() WHERE id = $2`,
+          [userId, keyRow.id],
+        );
+      }
     });
   } catch {
     return res.status(409).json({ error: 'Un compte existe déjà avec cet e-mail.' });
@@ -156,6 +161,26 @@ authRouter.post('/login', async (req, res) => {
 // GET /api/auth/me — profil de l'utilisateur connecté.
 authRouter.get('/me', requireAuth, async (req, res) => {
   return res.json({ user: await publicUser(req.user!.id) });
+});
+
+// POST /api/auth/redeem — un compte gratuit débloque le Pro avec une clé valide.
+authRouter.post('/redeem', requireAuth, async (req, res) => {
+  const normKey = String((req.body as { key?: string })?.key ?? '').toUpperCase().trim();
+  if (!isValidKeyFormat(normKey)) return res.status(400).json({ error: 'Format de clé invalide.' });
+
+  const already = await one(`SELECT id FROM activation_keys WHERE used_by = $1`, [req.user!.id]);
+  if (already) return res.status(400).json({ error: 'Ce compte est déjà lié à une clé.' });
+
+  const keyRow = await one<KeyRow>(`SELECT id, key, type, status FROM activation_keys WHERE key = $1`, [normKey]);
+  if (!keyRow) return res.status(400).json({ error: 'Clé introuvable.' });
+  if (keyRow.status === 'revoked') return res.status(400).json({ error: 'Cette clé a été révoquée.' });
+  if (keyRow.status === 'used') return res.status(409).json({ error: 'Cette clé est déjà utilisée.' });
+
+  await tx(async (c) => {
+    await c.query(`UPDATE activation_keys SET status='used', used_by=$1, used_at=now() WHERE id=$2`, [req.user!.id, keyRow.id]);
+    await c.query(`UPDATE users SET role=$1 WHERE id=$2`, [keyRow.type, req.user!.id]);
+  });
+  return res.json({ user: await publicUser(req.user!.id), message: 'Licence activée ! Tout est débloqué.' });
 });
 
 // POST /api/auth/logout

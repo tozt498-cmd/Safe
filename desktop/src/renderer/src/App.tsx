@@ -24,6 +24,8 @@ import { Disks } from './pages/Disks';
 import { Software } from './pages/Software';
 import { Profile } from './pages/Profile';
 import { Admin } from './pages/Admin';
+import { Shop } from './pages/Shop';
+import { Gated } from './components/Gated';
 
 function Splash() {
   return (
@@ -53,18 +55,19 @@ export default function App() {
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<Home />} />
-            <Route path="/total" element={<OptimisationTotale />} />
-            <Route path="/games" element={<Games />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/benchmark" element={<Benchmark />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/total" element={<Gated><OptimisationTotale /></Gated>} />
+            <Route path="/games" element={<Gated><Games /></Gated>} />
+            <Route path="/dashboard" element={<Gated><Dashboard /></Gated>} />
+            <Route path="/benchmark" element={<Gated><Benchmark /></Gated>} />
             <Route path="/cleaning" element={<Cleaning />} />
-            <Route path="/optimize" element={<Optimize />} />
-            <Route path="/processes" element={<Processes />} />
-            <Route path="/startup" element={<Startup />} />
-            <Route path="/network" element={<Network />} />
-            <Route path="/connection" element={<Connection />} />
+            <Route path="/optimize" element={<Gated><Optimize /></Gated>} />
+            <Route path="/processes" element={<Gated><Processes /></Gated>} />
+            <Route path="/startup" element={<Gated><Startup /></Gated>} />
+            <Route path="/network" element={<Gated><Network /></Gated>} />
+            <Route path="/connection" element={<Gated><Connection /></Gated>} />
             <Route path="/disks" element={<Disks />} />
-            <Route path="/software" element={<Software />} />
+            <Route path="/software" element={<Gated><Software /></Gated>} />
             <Route path="/profile" element={<Profile />} />
             <Route
               path="/admin"

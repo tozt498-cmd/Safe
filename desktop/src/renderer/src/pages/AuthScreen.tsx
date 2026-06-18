@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toast';
 import { ApiError } from '../lib/api';
+import { openExternal, SHOP_URL } from '../lib/entitlement';
 import { Button, Input } from '../components/ui/primitives';
 import { LogoMark } from '../components/Logo';
 
@@ -28,6 +29,7 @@ export function AuthScreen() {
   const [key, setKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [plan, setPlan] = useState<'free' | 'key'>('free');
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -38,8 +40,11 @@ export function AuthScreen() {
         await login(email, password);
         toast.success('Connexion réussie', 'Bienvenue sur SafeMarket Optimiseur.');
       } else {
-        await signup(email, password, confirm, key);
-        toast.success('Compte créé', 'Votre appareil a été lié à ce compte.');
+        await signup(email, password, confirm, plan === 'key' ? key : '');
+        toast.success(
+          'Compte créé',
+          plan === 'key' ? 'Licence activée — tout est débloqué.' : 'Compte gratuit créé. Débloque tout avec une clé quand tu veux.',
+        );
       }
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Une erreur est survenue.';
@@ -162,15 +167,45 @@ export function AuthScreen() {
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                   />
-                  <Input
-                    label="Clé d'activation"
-                    required={mode === 'signup'}
-                    icon={<KeyRound className="size-4" />}
-                    placeholder="XXXX-XXXX-XXXX-XXXX"
-                    className="font-mono tracking-wider"
-                    value={key}
-                    onChange={(e) => setKey(formatKey(e.target.value))}
-                  />
+
+                  {/* Choix : Gratuit ou Clé */}
+                  <div>
+                    <span className="mb-1.5 block text-xs font-medium text-muted">Type de compte</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPlan('free')}
+                        className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${plan === 'free' ? 'border-accent/50 bg-accent/10' : 'border-border hover:border-border-strong'}`}
+                      >
+                        <span className={`block text-sm font-medium ${plan === 'free' ? 'text-accent' : 'text-content'}`}>Gratuit</span>
+                        <span className="block text-2xs text-faint">Limité (cache + 1 outil)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPlan('key')}
+                        className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${plan === 'key' ? 'border-accent/50 bg-accent/10' : 'border-border hover:border-border-strong'}`}
+                      >
+                        <span className={`block text-sm font-medium ${plan === 'key' ? 'text-accent' : 'text-content'}`}>J'ai une clé</span>
+                        <span className="block text-2xs text-faint">Tout débloqué</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {plan === 'key' ? (
+                    <Input
+                      label="Clé d'activation"
+                      required={plan === 'key'}
+                      icon={<KeyRound className="size-4" />}
+                      placeholder="XXXX-XXXX-XXXX-XXXX"
+                      className="font-mono tracking-wider"
+                      value={key}
+                      onChange={(e) => setKey(formatKey(e.target.value))}
+                    />
+                  ) : (
+                    <button type="button" onClick={() => openExternal(SHOP_URL)} className="w-full rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-xs text-muted transition-colors hover:text-content">
+                      Pas de clé ? <span className="text-accent">Achète une licence (5,99 €)</span>
+                    </button>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

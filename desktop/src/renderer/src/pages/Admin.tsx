@@ -132,6 +132,17 @@ function KeysTab({ onChange }: { onChange: () => void }) {
     }
   };
 
+  const remove = async (id: string) => {
+    try {
+      await del(`/admin/keys/${id}`);
+      toast.success('Clé supprimée');
+      load();
+      onChange();
+    } catch (e) {
+      toast.error('Échec', (e as Error).message);
+    }
+  };
+
   return (
     <div className="grid gap-5 lg:grid-cols-3">
       <Card className="lg:col-span-1">
@@ -183,10 +194,13 @@ function KeysTab({ onChange }: { onChange: () => void }) {
                 </Badge>
                 <span className="flex-1 truncate text-xs text-muted">{k.used_by_email ?? k.note ?? ''}</span>
                 {k.status === 'unused' && (
-                  <Button variant="ghost" size="sm" className="hover:text-danger" onClick={() => revoke(k.id)} icon={<Ban className="size-3.5" />}>
+                  <Button variant="ghost" size="sm" className="hover:text-warn" onClick={() => revoke(k.id)} icon={<Ban className="size-3.5" />}>
                     Révoquer
                   </Button>
                 )}
+                <IconButton onClick={() => remove(k.id)} aria-label="Supprimer la clé" className="size-8 hover:text-danger">
+                  <Trash2 className="size-4" />
+                </IconButton>
               </div>
             ))
           )}

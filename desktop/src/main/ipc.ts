@@ -1,4 +1,4 @@
-import { ipcMain, Notification, app, BrowserWindow } from 'electron';
+import { ipcMain, Notification, app, BrowserWindow, shell } from 'electron';
 import { getSystemInfo, getLiveStats, getHealthScore } from './system/metrics.js';
 import { scanClean, runClean } from './system/clean.js';
 import { freeMemory, setGameMode } from './system/optimize.js';
@@ -49,6 +49,10 @@ export function registerIpc() {
       app.setLoginItemSettings({ openAtLogin: s.launchAtStartup });
     }
     return s;
+  });
+  ipcMain.handle('app:openExternal', (_e, url: string) => {
+    if (/^https?:\/\//.test(url)) shell.openExternal(url);
+    return true;
   });
   ipcMain.handle('app:notify', (_e, { title, body }: { title: string; body: string }) => {
     if (Notification.isSupported()) {

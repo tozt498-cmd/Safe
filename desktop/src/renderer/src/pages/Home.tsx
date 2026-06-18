@@ -10,12 +10,15 @@ import {
   XCircle,
   Sparkles,
   ArrowRight,
+  Lock,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, Button, Badge, Skeleton, ProgressBar } from '../components/ui/primitives';
 import { HealthRing } from '../components/ui/charts';
 import { Modal } from '../components/ui/Modal';
 import { useAsync, useInterval } from '../lib/hooks';
+import { useAuth } from '../store/auth';
+import { isPro } from '../lib/entitlement';
 import { toast } from '../store/toast';
 import { formatBytes, formatUptime } from '../lib/format';
 import type { HealthScore, SystemInfo, LiveStats, BoostResult } from '../lib/types';
@@ -52,6 +55,8 @@ export function Home() {
   const [boosting, setBoosting] = useState(false);
   const [result, setResult] = useState<BoostResult | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const navigate = useNavigate();
+  const pro = isPro(useAuth((s) => s.user));
 
   useInterval(() => window.api.metrics.live().then(setLive).catch(() => {}), 2500);
 
@@ -148,15 +153,26 @@ export function Home() {
                     ))}
               </div>
 
-              <Button
-                size="lg"
-                icon={<Zap className="size-5" />}
-                onClick={runBoost}
-                loading={boosting}
-                className="mt-6 w-full"
-              >
-                Optimisation en 1 clic
-              </Button>
+              {pro ? (
+                <Button
+                  size="lg"
+                  icon={<Zap className="size-5" />}
+                  onClick={runBoost}
+                  loading={boosting}
+                  className="mt-6 w-full"
+                >
+                  Optimisation en 1 clic
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  icon={<Lock className="size-5" />}
+                  onClick={() => navigate('/shop')}
+                  className="mt-6 w-full"
+                >
+                  Débloquer l'optimisation (Pro)
+                </Button>
+              )}
             </div>
           </div>
         </Card>
