@@ -9,6 +9,7 @@ interface Settings {
   closeToTray: boolean;
   launchAtStartup: boolean;
   theme: 'dark' | 'light';
+  autoElevate: boolean;
 }
 
 function Row({ icon: Icon, label, value }: { icon: typeof User; label: string; value: string }) {
@@ -89,6 +90,18 @@ export function Profile() {
               <Toggle
                 checked={settings?.closeToTray ?? true}
                 onChange={(v) => update({ closeToTray: v })}
+              />
+            </div>
+            <div className="flex items-center justify-between border-t border-border/60 py-3">
+              <div>
+                <p className="text-sm font-medium text-content">Lancer en administrateur</p>
+                <p className="text-xs text-muted">
+                  Recommandé : nécessaire pour que toutes les optimisations s'appliquent.
+                </p>
+              </div>
+              <Toggle
+                checked={settings?.autoElevate ?? true}
+                onChange={(v) => update({ autoElevate: v })}
               />
             </div>
           </div>

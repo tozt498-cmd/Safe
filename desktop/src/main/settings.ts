@@ -6,10 +6,18 @@ export interface AppSettings {
   closeToTray: boolean;
   launchAtStartup: boolean;
   theme: 'dark' | 'light';
+  // Demander automatiquement les droits administrateur au lancement
+  // (nécessaire pour que TOUTES les optimisations fonctionnent).
+  autoElevate: boolean;
 }
 
 const FILE = () => join(app.getPath('userData'), 'settings.json');
-const DEFAULTS: AppSettings = { closeToTray: true, launchAtStartup: false, theme: 'dark' };
+const DEFAULTS: AppSettings = {
+  closeToTray: true,
+  launchAtStartup: false,
+  theme: 'dark',
+  autoElevate: true,
+};
 
 let cache: AppSettings | null = null;
 

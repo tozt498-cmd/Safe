@@ -21,6 +21,7 @@ import {
   wifiScan,
 } from './system/network.js';
 import { getHwid, getHwidLabel } from './system/hwid.js';
+import { isAdmin, relaunchAsAdmin } from './system/admin.js';
 import { getSettings, setSettings } from './settings.js';
 import { iconPath } from './window.js';
 
@@ -42,6 +43,13 @@ export function registerIpc() {
   // ---- Application / système -----------------------------------------------
   ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('app:hwid', () => ({ hwid: getHwid(), label: getHwidLabel() }));
+  ipcMain.handle('app:isAdmin', () => isAdmin());
+  // Relance en administrateur ; si l'UAC est accepté, on ferme l'instance courante.
+  ipcMain.handle('app:relaunchAsAdmin', () => {
+    const ok = relaunchAsAdmin(['--elevated']);
+    if (ok) setTimeout(() => app.quit(), 300);
+    return ok;
+  });
   ipcMain.handle('app:getSettings', () => getSettings());
   ipcMain.handle('app:setSettings', (_e, patch) => {
     const s = setSettings(patch);

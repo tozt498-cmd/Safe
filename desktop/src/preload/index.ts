@@ -47,8 +47,14 @@ export const api = {
   app: {
     version: (): Promise<string> => ipcRenderer.invoke('app:version'),
     hwid: (): Promise<{ hwid: string; label: string }> => ipcRenderer.invoke('app:hwid'),
-    getSettings: (): Promise<{ closeToTray: boolean; launchAtStartup: boolean; theme: 'dark' | 'light' }> =>
-      ipcRenderer.invoke('app:getSettings'),
+    isAdmin: (): Promise<boolean> => ipcRenderer.invoke('app:isAdmin'),
+    relaunchAsAdmin: (): Promise<boolean> => ipcRenderer.invoke('app:relaunchAsAdmin'),
+    getSettings: (): Promise<{
+      closeToTray: boolean;
+      launchAtStartup: boolean;
+      theme: 'dark' | 'light';
+      autoElevate: boolean;
+    }> => ipcRenderer.invoke('app:getSettings'),
     setSettings: (patch: Record<string, unknown>) => ipcRenderer.invoke('app:setSettings', patch),
     notify: (title: string, body: string) => ipcRenderer.invoke('app:notify', { title, body }),
     openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),

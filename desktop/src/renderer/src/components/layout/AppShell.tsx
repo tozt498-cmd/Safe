@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Titlebar } from './Titlebar';
 import { Sidebar } from './Sidebar';
 import { BroadcastListener } from '../BroadcastListener';
+import { AdminBanner } from '../AdminBanner';
 
 export function AppShell() {
   const location = useLocation();
@@ -19,6 +20,7 @@ export function AppShell() {
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="relative mx-auto max-w-6xl px-8 py-8"
           >
+            <AdminBanner />
             <Outlet />
           </motion.div>
         </main>
