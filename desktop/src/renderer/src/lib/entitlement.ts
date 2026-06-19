@@ -1,6 +1,6 @@
 import type { User } from './types';
 
-export const SHOP_URL = 'https://snowoptimiseur-site.vercel.app';
+export const SHOP_URL = 'https://safeoptimiseur.vercel.app';
 export const DISCORD_URL = 'https://discord.gg/aYR2hXnp9Q';
 
 // Routes accessibles aux comptes GRATUITS (le reste est cadenassé).
