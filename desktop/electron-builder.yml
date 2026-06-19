@@ -7,10 +7,13 @@ directories:
   output: release
 
 # Mises à jour automatiques via GitHub Releases (electron-updater).
+# releaseType: release -> publie une vraie release (pas un brouillon),
+# pour que /releases/latest/download fonctionne en téléchargement direct.
 publish:
   provider: github
   owner: tozt498-cmd
-  repo: SafeOptimizer
+  repo: Safe
+  releaseType: release
 
 files:
   - out/**
@@ -29,7 +32,8 @@ win:
       arch:
         - x64
   icon: build/icon.ico
-  artifactName: ${productName}-Setup-${version}.${ext}
+  # Nom FIXE (sans version) -> lien direct stable: /releases/latest/download/SafeMarket-Optimiseur-Setup.exe
+  artifactName: SafeMarket-Optimiseur-Setup.${ext}
 
 nsis:
   oneClick: false
