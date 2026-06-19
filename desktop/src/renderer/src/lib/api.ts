@@ -13,6 +13,25 @@ export function getAuthToken(): string | null {
   return token;
 }
 
+// Sauvegarde locale du profil : permet de restaurer la session instantanément au
+// lancement et de rester connecté même si le serveur est momentanément injoignable.
+const USER_KEY = 'sm.user';
+
+export function setCachedUser(user: unknown | null) {
+  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+  else localStorage.removeItem(USER_KEY);
+}
+
+export function getCachedUser<T>(): T | null {
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 export function setUnauthorizedHandler(fn: () => void) {
   onUnauthorized = fn;
 }

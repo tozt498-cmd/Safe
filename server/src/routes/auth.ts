@@ -163,6 +163,13 @@ authRouter.get('/me', requireAuth, async (req, res) => {
   return res.json({ user: await publicUser(req.user!.id) });
 });
 
+// POST /api/auth/refresh — prolonge la session (nouveau token de 30 j) tant que le
+// compte est valide et lié à cet appareil. Appelé à chaque ouverture de l'app.
+authRouter.post('/refresh', requireAuth, async (req, res) => {
+  const token = signToken(req.user!.id, req.user!.hwid!);
+  return res.json({ token, user: await publicUser(req.user!.id) });
+});
+
 // POST /api/auth/redeem — un compte gratuit débloque le Pro avec une clé valide.
 authRouter.post('/redeem', requireAuth, async (req, res) => {
   const normKey = String((req.body as { key?: string })?.key ?? '').toUpperCase().trim();
