@@ -58,6 +58,8 @@ export const api = {
     setSettings: (patch: Record<string, unknown>) => ipcRenderer.invoke('app:setSettings', patch),
     notify: (title: string, body: string) => ipcRenderer.invoke('app:notify', { title, body }),
     openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
+    // Transmet le token de session au processus principal (vérification Pro côté serveur).
+    setToken: (token: string | null) => ipcRenderer.invoke('app:setToken', token),
   },
 
   // Métriques

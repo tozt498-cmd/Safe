@@ -22,8 +22,21 @@ import {
 } from './system/network.js';
 import { getHwid, getHwidLabel } from './system/hwid.js';
 import { isAdmin, relaunchAsAdmin } from './system/admin.js';
+import * as entitlement from './entitlement.js';
 import { getSettings, setSettings } from './settings.js';
 import { iconPath } from './window.js';
+
+// Garde côté serveur : refuse l'exécution d'une fonctionnalité Pro si le serveur
+// ne confirme pas le statut Pro du compte. Le gating ne dépend plus du client.
+type IpcHandler = (...args: any[]) => unknown;
+function proGuard(handler: IpcHandler): IpcHandler {
+  return async (...args: any[]) => {
+    if (!(await entitlement.isPro())) {
+      throw new Error('PRO_REQUIRED');
+    }
+    return handler(...args);
+  };
+}
 
 export function registerIpc() {
   // ---- Fenêtre -------------------------------------------------------------
@@ -62,6 +75,12 @@ export function registerIpc() {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
     return true;
   });
+  // Le renderer transmet le token de session au processus principal pour la
+  // vérification d'entitlement côté serveur (jamais de secret, juste le token).
+  ipcMain.handle('app:setToken', (_e, token: string | null) => {
+    entitlement.setToken(token);
+    return true;
+  });
   ipcMain.handle('app:notify', (_e, { title, body }: { title: string; body: string }) => {
     if (Notification.isSupported()) {
       new Notification({ title, body, icon: iconPath() }).show();
@@ -75,53 +94,63 @@ export function registerIpc() {
   ipcMain.handle('sys:health', () => getHealthScore());
 
   // ---- Nettoyage / optimisation -------------------------------------------
+  // Gratuit : analyse + nettoyage de base, disques, métriques.
   ipcMain.handle('clean:scan', () => scanClean());
   ipcMain.handle('clean:run', (_e, ids: string[]) => runClean(ids));
-  ipcMain.handle('optimize:freeMemory', () => freeMemory());
-  ipcMain.handle('optimize:gameMode', (_e, on: boolean) => setGameMode(on));
-  ipcMain.handle('boost:run', () => runBoost());
+  // Pro : vérifié côté serveur via proGuard.
+  ipcMain.handle('optimize:freeMemory', proGuard(() => freeMemory()));
+  ipcMain.handle('optimize:gameMode', proGuard((_e, on: boolean) => setGameMode(on)));
+  ipcMain.handle('boost:run', proGuard(() => runBoost()));
 
   // Optimisation Totale — progression diffusée via 'total:progress'
   ipcMain.handle('total:categories', () => totalCategories());
-  ipcMain.handle('total:run', (e, ids: string[]) =>
-    runTotal(ids, (p) => {
-      if (!e.sender.isDestroyed()) e.sender.send('total:progress', p);
-    }),
+  ipcMain.handle(
+    'total:run',
+    proGuard((e, ids: string[]) =>
+      runTotal(ids, (p) => {
+        if (!e.sender.isDestroyed()) e.sender.send('total:progress', p);
+      }),
+    ),
   );
 
   // Optimisation par jeu — progression diffusée via 'games:progress'
   ipcMain.handle('games:list', () => listGames());
-  ipcMain.handle('games:run', (e, gameId: string) =>
-    runGameOptimization(gameId, (p) => {
-      if (!e.sender.isDestroyed()) e.sender.send('games:progress', p);
-    }),
+  ipcMain.handle(
+    'games:run',
+    proGuard((e, gameId: string) =>
+      runGameOptimization(gameId, (p) => {
+        if (!e.sender.isDestroyed()) e.sender.send('games:progress', p);
+      }),
+    ),
   );
 
   // ---- Processus / démarrage ----------------------------------------------
   ipcMain.handle('proc:list', () => listProcesses());
-  ipcMain.handle('proc:kill', (_e, pid: number) => killProcess(pid));
+  ipcMain.handle('proc:kill', proGuard((_e, pid: number) => killProcess(pid)));
   ipcMain.handle('startup:list', () => listStartup());
-  ipcMain.handle('startup:set', (_e, { id, enable }: { id: string; enable: boolean }) =>
-    setStartupItem(id, enable),
+  ipcMain.handle(
+    'startup:set',
+    proGuard((_e, { id, enable }: { id: string; enable: boolean }) => setStartupItem(id, enable)),
   );
 
   // ---- Disques / logiciels -------------------------------------------------
   ipcMain.handle('disks:list', () => listDisks());
   ipcMain.handle('software:list', () => listSoftware());
-  ipcMain.handle('software:uninstall', (_e, uninstallString: string | null) =>
-    uninstallSoftware(uninstallString),
+  ipcMain.handle(
+    'software:uninstall',
+    proGuard((_e, uninstallString: string | null) => uninstallSoftware(uninstallString)),
   );
 
   // ---- Benchmark -----------------------------------------------------------
-  ipcMain.handle('bench:run', () => runBenchmark());
+  ipcMain.handle('bench:run', proGuard(() => runBenchmark()));
 
   // ---- Réseau --------------------------------------------------------------
   ipcMain.handle('net:speed', () => speedTest());
   ipcMain.handle('net:ping', (_e, host?: string) => pingTest(host));
   ipcMain.handle('net:dnsBench', () => dnsBenchmark());
-  ipcMain.handle('net:applyDns', (_e, address: string) => applyDns(address));
+  ipcMain.handle('net:applyDns', proGuard((_e, address: string) => applyDns(address)));
   ipcMain.handle('net:flushDns', () => flushDns());
-  ipcMain.handle('net:tcpOptimize', () => tcpOptimize());
-  ipcMain.handle('net:reset', () => resetNetwork());
+  ipcMain.handle('net:tcpOptimize', proGuard(() => tcpOptimize()));
+  ipcMain.handle('net:reset', proGuard(() => resetNetwork()));
   ipcMain.handle('net:wifi', () => wifiScan());
 }

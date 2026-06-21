@@ -32,6 +32,12 @@ async function getHwid() {
   }
 }
 
+// Transmet le token au processus principal, qui valide le statut Pro côté serveur
+// avant d'autoriser les fonctionnalités payantes.
+function syncMainToken(token: string | null) {
+  void window.api.app.setToken(token).catch(() => {});
+}
+
 // Rafraîchissement automatique du token pendant que l'app reste ouverte
 // (prolonge la session sans aucune action de l'utilisateur).
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -68,6 +74,7 @@ export const useAuth = create<AuthState>((set, getState) => ({
       const res = await post<{ token: string; user: User }>('/auth/refresh', {});
       setAuthToken(res.token);
       setCachedUser(res.user);
+      syncMainToken(res.token);
       set({ user: res.user, status: 'authed' });
       connectWs(res.token);
       startAutoRefresh();
@@ -78,10 +85,12 @@ export const useAuth = create<AuthState>((set, getState) => ({
         // là seulement on efface la session sauvegardée.
         setAuthToken(null);
         setCachedUser(null);
+        syncMainToken(null);
         set({ status: 'guest', user: null });
       } else if (cached) {
         // Tout autre souci (serveur injoignable, 404/500, réveil de Render…) :
         // on NE déconnecte JAMAIS, on garde la session sauvegardée.
+        syncMainToken(token);
         set({ user: cached, status: 'authed' });
         connectWs(token);
         startAutoRefresh();
@@ -101,6 +110,7 @@ export const useAuth = create<AuthState>((set, getState) => ({
     });
     setAuthToken(res.token);
     setCachedUser(res.user);
+    syncMainToken(res.token);
     set({ user: res.user, status: 'authed' });
     connectWs(res.token);
     startAutoRefresh();
@@ -117,6 +127,7 @@ export const useAuth = create<AuthState>((set, getState) => ({
     disconnectWs();
     setAuthToken(null);
     setCachedUser(null);
+    syncMainToken(null);
     set({ user: null, status: 'guest' });
   },
 
@@ -138,6 +149,7 @@ export const useAuth = create<AuthState>((set, getState) => ({
       const res = await post<{ token: string; user: User }>('/auth/refresh', {});
       setAuthToken(res.token);
       setCachedUser(res.user);
+      syncMainToken(res.token);
       set({ user: res.user });
     } catch (e) {
       if (e instanceof ApiError && (e.status === 401 || e.status === 403)) getState().logout();
@@ -147,6 +159,8 @@ export const useAuth = create<AuthState>((set, getState) => ({
   redeem: async (key) => {
     const res = await post<{ user: User }>('/auth/redeem', { key });
     setCachedUser(res.user);
+    // Le compte devient Pro : on réinitialise le cache d'entitlement côté principal.
+    syncMainToken(getAuthToken());
     set({ user: res.user });
   },
 }));
