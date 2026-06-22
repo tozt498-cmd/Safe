@@ -82,7 +82,7 @@ export function registerIpc() {
     return true;
   });
   ipcMain.handle('app:notify', (_e, { title, body }: { title: string; body: string }) => {
-    if (Notification.isSupported()) {
+    if (getSettings().notifications && Notification.isSupported()) {
       new Notification({ title, body, icon: iconPath() }).show();
     }
     return true;

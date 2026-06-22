@@ -19,6 +19,7 @@ import {
   Lock,
   ShoppingBag,
   MessageCircle,
+  Settings as SettingsIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../store/auth';
@@ -87,7 +88,7 @@ function NavItem({ item, locked }: { item: Item; locked?: boolean }) {
             <motion.span
               layoutId="nav-active"
               transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-              className="absolute inset-0 rounded-xl border border-accent/20 bg-gradient-to-r from-accent/[0.14] to-accent/[0.03]"
+              className="absolute inset-0 rounded-xl border border-accent/25 bg-gradient-to-r from-accent/[0.20] via-accent/[0.07] to-transparent shadow-[0_0_24px_-8px_rgb(var(--accent)/0.7)]"
             />
           )}
           {!isActive && (
@@ -99,7 +100,7 @@ function NavItem({ item, locked }: { item: Item; locked?: boolean }) {
               isActive ? 'opacity-100 shadow-glow-sm' : 'opacity-0',
             )}
           />
-          <Icon className={cn('relative size-[18px] transition-colors', isActive && 'text-accent', locked && 'opacity-60')} />
+          <Icon className={cn('relative size-[18px] transition-all duration-200 group-hover:scale-110', isActive ? 'text-accent' : 'group-hover:text-accent', locked && 'opacity-60')} />
           <span className={cn('relative', locked && 'opacity-60')}>{item.label}</span>
           {locked && <Lock className="relative ml-auto size-3.5 text-faint" />}
         </>
@@ -146,12 +147,11 @@ export function Sidebar() {
         </NavLink>
 
         <NavItem item={{ to: '/shop', label: 'Boutique', icon: ShoppingBag }} />
+        <NavItem item={{ to: '/settings', label: 'Paramètres', icon: SettingsIcon }} />
 
         {GROUPS.map((g) => (
           <div key={g.title}>
-            <p className="mb-1.5 px-3 text-2xs font-semibold uppercase tracking-[0.16em] text-faint">
-              {g.title}
-            </p>
+            <p className="eyebrow mb-2 px-3">{g.title}</p>
             <div className="space-y-0.5">
               {g.items.map((item) => (
                 <NavItem key={item.to} item={item} locked={!pro && !FREE_ROUTES.includes(item.to)} />
@@ -162,9 +162,7 @@ export function Sidebar() {
 
         {user?.role === 'admin' && (
           <div>
-            <p className="mb-1.5 px-3 text-2xs font-semibold uppercase tracking-[0.16em] text-faint">
-              Administration
-            </p>
+            <p className="eyebrow mb-2 px-3">Administration</p>
             <NavItem item={{ to: '/admin', label: 'Panneau admin', icon: ShieldCheck }} />
           </div>
         )}

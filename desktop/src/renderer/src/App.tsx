@@ -23,6 +23,7 @@ import { Connection } from './pages/Connection';
 import { Disks } from './pages/Disks';
 import { Software } from './pages/Software';
 import { Profile } from './pages/Profile';
+import { Settings } from './pages/Settings';
 import { Admin } from './pages/Admin';
 import { Shop } from './pages/Shop';
 import { Gated } from './components/Gated';
@@ -69,6 +70,7 @@ export default function App() {
             <Route path="/disks" element={<Disks />} />
             <Route path="/software" element={<Gated><Software /></Gated>} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
             <Route
               path="/admin"
               element={user?.role === 'admin' ? <Admin /> : <Navigate to="/" replace />}

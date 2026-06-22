@@ -1,5 +1,39 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { cn } from '../../lib/cn';
+
+/* ------------------------------- Counter ---------------------------------- */
+// Nombre qui s'anime de sa valeur précédente vers la nouvelle (count-up).
+export function Counter({
+  to,
+  duration = 1100,
+  decimals = 0,
+  className,
+}: {
+  to: number;
+  duration?: number;
+  decimals?: number;
+  className?: string;
+}) {
+  const [value, setValue] = useState(0);
+  const fromRef = useRef(0);
+
+  useEffect(() => {
+    const from = fromRef.current;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(from + (to - from) * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else fromRef.current = to;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [to, duration]);
+
+  return <span className={className}>{value.toFixed(decimals)}</span>;
+}
 
 /* ----------------------------- helpers ------------------------------------ */
 function polar(cx: number, cy: number, r: number, deg: number) {
@@ -100,24 +134,44 @@ export function RadialGauge({
 }
 
 /* ------------------------------ HealthRing -------------------------------- */
-export function HealthRing({ score, size = 220 }: { score: number; size?: number }) {
-  const v = Math.max(0, Math.min(100, score));
-  const stroke = 14;
+// Jauge de score circulaire : tracé en dégradé, glow émeraude, remplissage
+// animé au chargement et nombre qui compte jusqu'au score.
+export function HealthRing({ score, size = 224 }: { score: number; size?: number }) {
+  const target = Math.max(0, Math.min(100, score));
+  const stroke = 16;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const offset = c - (c * v) / 100;
   const gid = useId();
-  const color =
-    v >= 75 ? 'rgb(var(--accent))' : v >= 50 ? 'rgb(var(--warn))' : 'rgb(var(--danger))';
+
+  // Remplissage au chargement : on part de 0 puis on anime vers la cible.
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setProgress(target));
+    return () => cancelAnimationFrame(id);
+  }, [target]);
+  const offset = c - (c * progress) / 100;
+
+  const tail =
+    target >= 75 ? 'rgb(var(--accent-deep))' : target >= 50 ? 'rgb(var(--warn))' : 'rgb(var(--danger))';
+  const glow =
+    target >= 75 ? 'rgb(var(--accent))' : target >= 50 ? 'rgb(var(--warn))' : 'rgb(var(--danger))';
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div className="relative grid place-items-center" style={{ width: size, height: size }}>
+      {/* halo de couleur derrière la jauge */}
+      <div
+        className="absolute rounded-full"
+        style={{ width: size * 0.62, height: size * 0.62, background: glow, filter: 'blur(48px)', opacity: 0.22 }}
+      />
       <svg width={size} height={size} className="-rotate-90">
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="rgb(var(--accent-bright))" />
-            <stop offset="100%" stopColor={color} />
+            <stop offset="100%" stopColor={tail} />
           </linearGradient>
+          <filter id={`${gid}-glow`} x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={glow} floodOpacity="0.6" />
+          </filter>
         </defs>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--surface-2))" strokeWidth={stroke} />
         <circle
@@ -130,14 +184,16 @@ export function HealthRing({ score, size = 220 }: { score: number; size?: number
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 1.1s cubic-bezier(0.22,1,0.36,1)' }}
+          filter={`url(#${gid}-glow)`}
+          style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.22,1,0.36,1)' }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-mono text-[3.4rem] font-semibold leading-none tabular text-content">
-          {Math.round(v)}
-        </span>
-        <span className="mt-1 text-2xs uppercase tracking-[0.2em] text-faint">/ 100</span>
+        <Counter
+          to={target}
+          className="font-mono text-[3.6rem] font-semibold leading-none tabular text-content"
+        />
+        <span className="mt-2 text-2xs uppercase tracking-[0.22em] text-faint">Score / 100</span>
       </div>
     </div>
   );

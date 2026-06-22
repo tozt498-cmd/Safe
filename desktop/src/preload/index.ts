@@ -24,10 +24,12 @@ import type {
   GameReport,
 } from '../shared/types.js';
 
-// Production -> backend hébergé (Render). Dev -> backend local.
+// On cible le backend hébergé (Render) en dev comme en prod, pour pouvoir tester
+// l'app sans avoir à lancer un serveur local.
+// Pour développer le backend en local, remettre :
+//   const API_BASE = import.meta.env.PROD ? PROD_API : 'http://127.0.0.1:4317';
 const PROD_API = 'https://safeoptimiseur.onrender.com';
-const DEV_API = 'http://127.0.0.1:4317';
-const API_BASE = import.meta.env.PROD ? PROD_API : DEV_API;
+const API_BASE = PROD_API;
 
 export const api = {
   config: {
@@ -54,6 +56,8 @@ export const api = {
       launchAtStartup: boolean;
       theme: 'dark' | 'light';
       autoElevate: boolean;
+      notifications: boolean;
+      scheduledOptim: { enabled: boolean; frequency: 'daily' | 'weekly' };
     }> => ipcRenderer.invoke('app:getSettings'),
     setSettings: (patch: Record<string, unknown>) => ipcRenderer.invoke('app:setSettings', patch),
     notify: (title: string, body: string) => ipcRenderer.invoke('app:notify', { title, body }),

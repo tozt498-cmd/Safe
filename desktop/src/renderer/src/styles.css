@@ -190,6 +190,61 @@
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum';
   }
+
+  /* Bordure lumineuse émeraude pour les cartes mises en avant. */
+  .glow-border {
+    border-color: rgb(var(--accent) / 0.35) !important;
+    box-shadow:
+      0 0 0 1px rgb(var(--accent) / 0.18),
+      0 0 60px -22px rgb(var(--accent) / 0.6);
+  }
+
+  /* Eyebrow de section : petit libellé capitales + tiret d'accent. */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgb(var(--text-faint));
+  }
+  .eyebrow::before {
+    content: '';
+    width: 1.4rem;
+    height: 1px;
+    background: linear-gradient(90deg, rgb(var(--accent)), transparent);
+  }
+
+  /* Bouton hero : dégradé émeraude + brillance qui balaie au survol. */
+  .hero-cta {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, rgb(var(--accent-bright)), rgb(var(--accent-deep)));
+    color: #04130d;
+  }
+  .hero-cta::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 -40%;
+    width: 32%;
+    transform: skewX(-18deg);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.38), transparent);
+    transition: left 0.6s ease;
+  }
+  .hero-cta:hover::after {
+    left: 135%;
+  }
+
+  /* Tache lumineuse de fond (ambiance bento). */
+  .blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(64px);
+    pointer-events: none;
+    opacity: 0.5;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

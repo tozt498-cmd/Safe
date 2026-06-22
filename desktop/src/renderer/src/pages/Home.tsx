@@ -1,48 +1,64 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Zap,
-  Cpu,
-  MemoryStick,
-  HardDrive,
   Clock,
   CheckCircle2,
   XCircle,
   Sparkles,
   ArrowRight,
   Lock,
+  Loader2,
+  Trash2,
+  LineChart,
+  Signal,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card, Button, Badge, Skeleton, ProgressBar } from '../components/ui/primitives';
-import { HealthRing } from '../components/ui/charts';
+import { Card, Badge, Skeleton, ProgressBar, Button } from '../components/ui/primitives';
+import { HealthRing, RadialGauge, AreaChart } from '../components/ui/charts';
 import { Modal } from '../components/ui/Modal';
 import { useAsync, useInterval } from '../lib/hooks';
 import { useAuth } from '../store/auth';
+import { useStats } from '../store/stats';
 import { isPro } from '../lib/entitlement';
 import { toast } from '../store/toast';
 import { formatBytes, formatUptime } from '../lib/format';
 import type { HealthScore, SystemInfo, LiveStats, BoostResult } from '../lib/types';
 
-function StatTile({
-  icon: Icon,
+// Apparition échelonnée des cellules du bento.
+const cell = (i: number) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] as const },
+});
+
+const CAP = 40;
+function push(arr: number[], v: number): number[] {
+  const next = [...arr, v];
+  return next.length > CAP ? next.slice(next.length - CAP) : next;
+}
+
+function GaugeTile({
   label,
-  value,
   sub,
+  value,
 }: {
-  icon: typeof Cpu;
   label: string;
-  value: string;
   sub?: string;
+  value: number | null;
 }) {
   return (
-    <Card hover className="flex items-center gap-4">
-      <div className="flex size-11 items-center justify-center rounded-xl border border-border bg-surface-2/60 text-accent">
-        <Icon className="size-5" />
-      </div>
+    <Card hover className="flex h-full items-center gap-3.5">
+      {value == null ? (
+        <div className="grid size-[64px] shrink-0 place-items-center rounded-full border border-border bg-surface-2 font-mono text-2xs text-faint">
+          N/A
+        </div>
+      ) : (
+        <RadialGauge value={value} size={64} />
+      )}
       <div className="min-w-0">
         <p className="text-2xs font-medium uppercase tracking-wide text-faint">{label}</p>
-        <p className="font-mono text-lg font-semibold tabular text-content">{value}</p>
-        {sub && <p className="truncate text-2xs text-muted">{sub}</p>}
+        {sub && <p className="mt-0.5 truncate text-xs text-muted">{sub}</p>}
       </div>
     </Card>
   );
@@ -57,8 +73,19 @@ export function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const navigate = useNavigate();
   const pro = isPro(useAuth((s) => s.user));
+  const histRef = useRef({ cpu: [] as number[], mem: [] as number[] });
 
-  useInterval(() => window.api.metrics.live().then(setLive).catch(() => {}), 2500);
+  useInterval(() => {
+    window.api.metrics
+      .live()
+      .then((s) => {
+        const hh = histRef.current;
+        hh.cpu = push(hh.cpu, s.cpu.load);
+        hh.mem = push(hh.mem, s.mem.percent);
+        setLive(s);
+      })
+      .catch(() => {});
+  }, 1500);
 
   const runBoost = async () => {
     setModalOpen(true);
@@ -67,6 +94,7 @@ export function Home() {
     try {
       const res = await window.api.boost.run();
       setResult(res);
+      useStats.getState().record({ freedBytes: res.freedBytes, ramMB: res.memoryFreedMB });
       await health.reload();
       window.api.app.notify(
         'Optimisation terminée',
@@ -82,44 +110,37 @@ export function Home() {
   };
 
   const h = health.data;
+  const hist = histRef.current;
 
   return (
-    <div>
+    <div className="relative isolate">
+      {/* Ambiance lumineuse en fond */}
+      <div
+        aria-hidden
+        className="blob -z-10 bg-accent animate-aurora"
+        style={{ width: '26rem', height: '26rem', top: '-9rem', left: '-7rem' }}
+      />
+      <div
+        aria-hidden
+        className="blob -z-10 bg-info animate-aurora"
+        style={{ width: '20rem', height: '20rem', top: '3rem', right: '-8rem', animationDelay: '-7s' }}
+      />
+
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-content">Accueil</h1>
+        <span className="eyebrow">Tableau de bord</span>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-content">Bonjour.</h1>
         <p className="mt-1 text-sm text-muted">
-          {info.data
-            ? `${info.data.hostname} • ${info.data.os}`
-            : 'Analyse de l\'état de votre système…'}
+          {info.data ? `${info.data.hostname} • ${info.data.os}` : 'Analyse de votre système…'}
         </p>
       </div>
 
-      {/* Bannière fonctionnalité phare */}
-      <Link to="/total">
-        <Card hover className="group relative mb-5 flex items-center gap-4 overflow-hidden p-5">
-          <div className="pointer-events-none absolute -right-10 -top-12 size-48 rounded-full bg-accent/15 blur-3xl" />
-          <div className="icon-chip size-12 shrink-0">
-            <Sparkles className="size-6" />
-          </div>
-          <div className="relative min-w-0 flex-1">
-            <p className="text-sm font-semibold text-content">Optimisation Totale</p>
-            <p className="truncate text-xs text-muted">
-              Nettoyage profond, mémoire, disques, réseau et performances — en une seule action.
-            </p>
-          </div>
-          <span className="relative inline-flex items-center gap-1.5 rounded-lg bg-accent-grad px-3.5 py-2 text-xs font-semibold text-[#04130d] transition-transform group-hover:translate-x-0.5">
-            Lancer <ArrowRight className="size-3.5" />
-          </span>
-        </Card>
-      </Link>
-
-      <div className="grid gap-5 lg:grid-cols-3">
-        {/* Carte santé */}
-        <Card className="lg:col-span-2">
-          <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-center">
+      <div className="grid gap-4 lg:grid-cols-4 lg:auto-rows-min">
+        {/* Score de santé — pièce maîtresse */}
+        <motion.div {...cell(0)} className="lg:col-span-2 lg:row-span-2">
+          <Card className="glow-border flex h-full flex-col gap-6 p-6 sm:flex-row sm:items-center">
             <div className="flex shrink-0 flex-col items-center gap-3">
               {health.loading || !h ? (
-                <Skeleton className="size-[220px] rounded-full" />
+                <Skeleton className="size-[224px] rounded-full" />
               ) : (
                 <>
                   <HealthRing score={h.score} />
@@ -131,12 +152,8 @@ export function Home() {
             </div>
 
             <div className="w-full flex-1">
-              <div className="mb-4 flex items-center gap-2 text-accent">
-                <Sparkles className="size-4" />
-                <span className="text-sm font-medium">Score de santé système</span>
-              </div>
-
-              <div className="space-y-3">
+              <span className="eyebrow">État du système</span>
+              <div className="mt-4 space-y-3.5">
                 {health.loading || !h
                   ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-9" />)
                   : h.factors.map((f) => (
@@ -154,74 +171,117 @@ export function Home() {
               </div>
 
               {pro ? (
-                <Button
-                  size="lg"
-                  icon={<Zap className="size-5" />}
+                <button
                   onClick={runBoost}
-                  loading={boosting}
-                  className="mt-6 w-full"
+                  disabled={boosting}
+                  className="hero-cta group mt-6 flex w-full items-center justify-center gap-2.5 rounded-2xl px-6 py-4 text-[15px] font-semibold animate-glow-pulse transition active:translate-y-px disabled:opacity-70"
                 >
+                  {boosting ? <Loader2 className="size-5 animate-spin" /> : <Zap className="size-5" />}
                   Optimisation en 1 clic
-                </Button>
+                </button>
               ) : (
-                <Button
-                  size="lg"
-                  icon={<Lock className="size-5" />}
+                <button
                   onClick={() => navigate('/shop')}
-                  className="mt-6 w-full"
+                  className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-2xl border border-accent/40 px-6 py-4 text-[15px] font-semibold text-accent transition hover:bg-accent/10 hover:border-accent/60"
                 >
-                  Débloquer l'optimisation (Pro)
-                </Button>
+                  <Lock className="size-5" /> Débloquer l'optimisation (Pro)
+                </button>
               )}
             </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
 
-        {/* Stats rapides */}
-        <div className="grid grid-cols-2 gap-5 lg:grid-cols-1">
-          <StatTile
-            icon={Cpu}
-            label="Processeur"
-            value={live ? `${live.cpu.load.toFixed(0)}%` : '—'}
-            sub={info.data?.cpuBrand}
-          />
-          <StatTile
-            icon={MemoryStick}
+        {/* Tuiles de métriques live */}
+        <motion.div {...cell(1)}>
+          <GaugeTile label="Processeur" sub={info.data?.cpuBrand} value={live ? live.cpu.load : null} />
+        </motion.div>
+        <motion.div {...cell(2)}>
+          <GaugeTile
             label="Mémoire"
-            value={live ? `${live.mem.percent.toFixed(0)}%` : '—'}
             sub={live ? `${live.mem.usedGB} / ${live.mem.totalGB} Go` : undefined}
+            value={live ? live.mem.percent : null}
           />
-          <StatTile
-            icon={HardDrive}
-            label="GPU"
-            value={live?.gpu.load != null ? `${live.gpu.load}%` : 'N/A'}
-            sub={info.data?.gpuModel}
-          />
-          <StatTile
-            icon={Clock}
-            label="Activité"
-            value={info.data ? formatUptime(info.data.uptimeSec) : '—'}
-            sub="Temps de fonctionnement"
-          />
-        </div>
+        </motion.div>
+        <motion.div {...cell(3)}>
+          <GaugeTile label="Carte graphique" sub={info.data?.gpuModel} value={live?.gpu.load ?? null} />
+        </motion.div>
+        <motion.div {...cell(4)}>
+          <Card hover className="flex h-full items-center gap-3.5">
+            <div className="icon-chip size-[64px] shrink-0">
+              <Clock className="size-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-2xs font-medium uppercase tracking-wide text-faint">Activité</p>
+              <p className="mt-0.5 font-mono text-base font-semibold tabular text-content">
+                {info.data ? formatUptime(info.data.uptimeSec) : '—'}
+              </p>
+              <p className="text-2xs text-muted">Temps de fonctionnement</p>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Optimisation Totale — carte hero */}
+        <motion.div {...cell(5)} className="lg:col-span-2">
+          <Link to="/total" className="block h-full">
+            <Card hover className="group relative flex h-full items-center gap-4 overflow-hidden p-6">
+              <div className="pointer-events-none absolute -right-8 -top-12 size-48 rounded-full bg-accent/15 blur-3xl transition-opacity group-hover:opacity-150" />
+              <div className="icon-chip size-14 shrink-0 animate-float">
+                <Sparkles className="size-7" />
+              </div>
+              <div className="relative min-w-0 flex-1">
+                <p className="text-base font-semibold text-content">Optimisation Totale</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  Nettoyage profond, mémoire, disques, réseau et performances — en une action.
+                </p>
+              </div>
+              <span className="relative inline-flex items-center gap-1.5 rounded-xl bg-accent-grad px-4 py-2.5 text-sm font-semibold text-[#04130d] transition-transform group-hover:translate-x-0.5">
+                Lancer <ArrowRight className="size-4" />
+              </span>
+            </Card>
+          </Link>
+        </motion.div>
+
+        {/* Courbe de performances */}
+        <motion.div {...cell(6)} className="lg:col-span-2">
+          <Card className="h-full p-6">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="eyebrow">Performances en direct</span>
+              <div className="flex gap-3 font-mono text-2xs tabular">
+                <span className="text-accent">CPU {live ? live.cpu.load.toFixed(0) : '0'}%</span>
+                <span className="text-info">RAM {live ? live.mem.percent.toFixed(0) : '0'}%</span>
+              </div>
+            </div>
+            <div className="relative">
+              <AreaChart data={hist.cpu} max={100} height={92} />
+              <div className="absolute inset-0">
+                <AreaChart data={hist.mem} max={100} height={92} color="rgb(var(--info))" />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
       </div>
 
       {/* Raccourcis */}
-      <div className="mt-5 grid gap-5 sm:grid-cols-3">
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
         {[
-          { to: '/cleaning', title: 'Nettoyer le disque', text: 'Supprimez les fichiers inutiles.' },
-          { to: '/dashboard', title: 'Surveiller en direct', text: 'Graphiques temps réel.' },
-          { to: '/connection', title: 'Optimiser la connexion', text: 'Test de débit & DNS.' },
-        ].map((s) => (
-          <Link key={s.to} to={s.to}>
-            <Card hover className="group flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-content">{s.title}</p>
-                <p className="text-xs text-muted">{s.text}</p>
-              </div>
-              <ArrowRight className="size-4 text-faint transition-all group-hover:translate-x-0.5 group-hover:text-accent" />
-            </Card>
-          </Link>
+          { to: '/cleaning', title: 'Nettoyer le disque', text: 'Supprimer les fichiers inutiles.', icon: Trash2 },
+          { to: '/dashboard', title: 'Surveiller en direct', text: 'Graphiques temps réel.', icon: LineChart },
+          { to: '/connection', title: 'Optimiser la connexion', text: 'Test de débit et DNS.', icon: Signal },
+        ].map((s, i) => (
+          <motion.div key={s.to} {...cell(7 + i)}>
+            <Link to={s.to}>
+              <Card hover className="group flex items-center gap-3.5">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-2/60 text-accent transition-colors group-hover:border-accent/40">
+                  <s.icon className="size-[18px]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-content">{s.title}</p>
+                  <p className="text-xs text-muted">{s.text}</p>
+                </div>
+                <ArrowRight className="size-4 text-faint transition-all group-hover:translate-x-0.5 group-hover:text-accent" />
+              </Card>
+            </Link>
+          </motion.div>
         ))}
       </div>
 

@@ -9,6 +9,10 @@ export interface AppSettings {
   // Demander automatiquement les droits administrateur au lancement
   // (nécessaire pour que TOUTES les optimisations fonctionnent).
   autoElevate: boolean;
+  // Autoriser les notifications système.
+  notifications: boolean;
+  // Optimisation planifiée automatique.
+  scheduledOptim: { enabled: boolean; frequency: 'daily' | 'weekly' };
 }
 
 const FILE = () => join(app.getPath('userData'), 'settings.json');
@@ -17,6 +21,8 @@ const DEFAULTS: AppSettings = {
   launchAtStartup: false,
   theme: 'dark',
   autoElevate: true,
+  notifications: true,
+  scheduledOptim: { enabled: false, frequency: 'weekly' },
 };
 
 let cache: AppSettings | null = null;

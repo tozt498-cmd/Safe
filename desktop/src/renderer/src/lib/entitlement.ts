@@ -5,7 +5,7 @@ export const DISCORD_URL = 'https://discord.gg/aYR2hXnp9Q';
 
 // Routes accessibles aux comptes GRATUITS (le reste est cadenassé).
 // Gratuit = nettoyage du cache + une optimisation mineure (disques) + boutique/profil.
-export const FREE_ROUTES = ['/', '/cleaning', '/disks', '/shop', '/profile'];
+export const FREE_ROUTES = ['/', '/cleaning', '/disks', '/shop', '/profile', '/settings'];
 
 export function isPro(user: User | null | undefined): boolean {
   return user?.plan === 'pro' || user?.role === 'admin';
